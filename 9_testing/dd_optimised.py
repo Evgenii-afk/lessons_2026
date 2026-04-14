@@ -187,18 +187,31 @@ def dexor_table(main_name, field_name, data, need_decode=1):
     data = data[an_len:]
     an_len, data = get_packed_value(data)
 
+#    start = tbllen + 1
+#
+#    for i in range(start, start + an_len):
+#        ch = copy[i]
+#        if need_decode == 1:
+#            dat += chr(ord(ch) ^ 0xC5)
+#            copy = copy[:i] + chr(ord(copy[i]) ^ 0xC5) + copy[i + 1:]
+#        else:
+#            dat += ch
+#
+#    return dat
+
     start = tbllen + 1
+    end = start + an_len
 
-    for i in range(start, start + an_len):
-        ch = copy[i]
-        if need_decode == 1:
-            dat += chr(ord(ch) ^ 0xC5)
-            copy = copy[:i] + chr(ord(copy[i]) ^ 0xC5) + copy[i + 1:]
-        else:
-            dat += ch
+    result = []  # ← список вместо строки
 
-    return dat
+    if need_decode == 1:
+        for i in range(start, end):
+            ch = copy[i]
+            result.append(chr(ord(ch) ^ 0xC5))  # ← append в список
+    else:
+        return copy[start:end]
 
+    return ''.join(result)
 
 def process_table(name, data):
     for item in DO_NOT_EXPORT:
