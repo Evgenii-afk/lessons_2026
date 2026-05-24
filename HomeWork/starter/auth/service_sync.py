@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import random
+
+from auth.models import AccountCard
 from auth.protocols import (
     AccountsRepositoryProtocol,
     AuditRepositoryProtocol,
@@ -19,13 +22,43 @@ class AccountCardService:
         self.codes = codes
 
     def create_account(self, email: str):
-        raise NotImplementedError("TODO: создать аккаунт и записать событие в audit")
+        account = self.accounts.create_account(email)
+
+        self.audit.log_event(
+            account.id,
+            "account_created",
+            {"email": email},
+        )
+
+        return account
 
     def set_verification_code(self, account_id: int, ttl_seconds: int = 300):
-        raise NotImplementedError("TODO: сгенерировать код, положить в Redis и записать событие")
+        code = str(random.randint(100000, 999999))
+
+        self.codes.set_code(
+            account_id,
+            code,
+            ttl_seconds,
+        )
+
+        self.audit.log_event(
+            account_id,
+            "verification_code_set",
+            {"code": code},
+        )
 
     def get_account_card(self, account_id: int):
-        raise NotImplementedError("TODO: собрать account + has_active_code + events")
+        account = self.accounts.get_account(account_id)
+        has_code = self.codes.has_code(account_id)
+        events = self.audit.list_events(account_id)
+
+        return AccountCard(
+            account=account,
+            has_active_code=has_code,
+            events=events,
+        )
 
     def reset(self) -> None:
-        raise NotImplementedError("TODO: очистить все 3 хранилища")
+        self.accounts.clear()
+        self.audit.clear()
+        self.codes.clear()

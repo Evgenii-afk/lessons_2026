@@ -1,31 +1,83 @@
 from __future__ import annotations
 
+from datetime import datetime
+
+from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
+
 from auth.config import Settings
+from auth.models import AuditEvent
 
 
 class MongoAuditRepository:
     def __init__(self, settings: Settings) -> None:
-        self.settings = settings
+        self.client = MongoClient(settings.mongo_dsn)
+        self.db = self.client[settings.mongo_db_name]
+        self.collection = self.db.audit
 
     def log_event(self, account_id: int, event_type: str, payload: dict) -> None:
-        raise NotImplementedError("TODO: sync Mongo log_event")
+        self.collection.insert_one({
+            "account_id": account_id,
+            "event_type": event_type,
+            "payload": payload,
+            "created_at": datetime.utcnow(),
+        })
 
     def list_events(self, account_id: int, limit: int = 5):
-        raise NotImplementedError("TODO: sync Mongo list_events")
+        docs = self.collection.find(
+            {"account_id": account_id}
+        ).sort("created_at", -1).limit(limit)
+
+        result = []
+
+        for doc in docs:
+            result.append(
+                AuditEvent(
+                    account_id=doc["account_id"],
+                    event_type=doc["event_type"],
+                    payload=doc["payload"],
+                    created_at=doc["created_at"],
+                )
+            )
+
+        return result
 
     def clear(self) -> None:
-        raise NotImplementedError("TODO: sync Mongo clear")
+        self.collection.delete_many({})
 
 
 class AsyncMongoAuditRepository:
     def __init__(self, settings: Settings) -> None:
-        self.settings = settings
+        self.client = AsyncIOMotorClient(settings.mongo_dsn)
+        self.db = self.client[settings.mongo_db_name]
+        self.collection = self.db.audit
 
     async def log_event(self, account_id: int, event_type: str, payload: dict) -> None:
-        raise NotImplementedError("TODO: async Mongo log_event")
+        await self.collection.insert_one({
+            "account_id": account_id,
+            "event_type": event_type,
+            "payload": payload,
+            "created_at": datetime.utcnow(),
+        })
 
     async def list_events(self, account_id: int, limit: int = 5):
-        raise NotImplementedError("TODO: async Mongo list_events")
+        cursor = self.collection.find(
+            {"account_id": account_id}
+        ).sort("created_at", -1).limit(limit)
+
+        result = []
+
+        async for doc in cursor:
+            result.append(
+                AuditEvent(
+                    account_id=doc["account_id"],
+                    event_type=doc["event_type"],
+                    payload=doc["payload"],
+                    created_at=doc["created_at"],
+                )
+            )
+
+        return result
 
     async def clear(self) -> None:
-        raise NotImplementedError("TODO: async Mongo clear")
+        await self.collection.delete_many({})
